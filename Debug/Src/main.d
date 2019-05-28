@@ -47,8 +47,7 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
  ../Drivers/BSP/STM32F769I-Discovery/stm32f769i_discovery_ts.h \
  ../Drivers/BSP/STM32F769I-Discovery/stm32f769i_discovery_lcd.h \
  ../Drivers/BSP/STM32F769I-Discovery/../Components/ft6x06/ft6x06.h \
- ../Drivers/BSP/STM32F769I-Discovery/../Components/ft6x06/../Common/ts.h \
- ../Inc/board.h
+ ../Drivers/BSP/STM32F769I-Discovery/../Components/ft6x06/../Common/ts.h
 
 ../Inc/main.h:
 
@@ -149,5 +148,3 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
 ../Drivers/BSP/STM32F769I-Discovery/../Components/ft6x06/ft6x06.h:
 
 ../Drivers/BSP/STM32F769I-Discovery/../Components/ft6x06/../Common/ts.h:
-
-../Inc/board.h:

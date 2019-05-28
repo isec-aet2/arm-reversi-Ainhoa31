@@ -28,7 +28,6 @@
 #include "stm32f769i_discovery_ts.h"
 #include "stdio.h"
 #include "stm32f7xx_hal_adc.h"
-#include "board.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +42,7 @@
 #define VSENS_AT_AMBIENT_TEMP 760
 #define AVG_SLOPE 25
 #define AMBIENT_TEMP 25
+#define BUTTON_INT PA0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,16 +60,20 @@ DSI_HandleTypeDef hdsi;
 LTDC_HandleTypeDef hltdc;
 
 TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
 
 SDRAM_HandleTypeDef hsdram1;
 
 /* USER CODE BEGIN PV */
 int ADC1value;
-int alreadyTouched=0;
 TS_StateTypeDef TS_State;
-int touchedX, touchedY;
-int twoSecondsPass=0;
+char tempStr1[50];
 
+uint8_t alreadyTouched=0;
+uint8_t touchedX, touchedY;
+uint8_t twoSecondsPass=0;
+uint8_t touchRefresh=0;
+uint8_t numberPlayers = 2;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,6 +85,7 @@ static void MX_LTDC_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_DSIHOST_DSI_Init(void);
 static void MX_TIM6_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void LCD_Config(void);
@@ -96,22 +101,33 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+
+
+	if(GPIO_Pin == GPIO_PIN_0)
+	{
+		 BSP_LED_Toggle(LED2);
+	}
+
 	if(GPIO_Pin == GPIO_PIN_13)
 	{
 		  BSP_TS_GetState(&TS_State);
 
-		  if((uint32_t)TS_State.touchDetected >= 1 && alreadyTouched==0)
+		  if(TS_State.touchDetected >= 1 && alreadyTouched==0)
 		  {
 			  alreadyTouched=1;
-			  touchedX = TS_State.touchX[0]/60;
-			  touchedY = TS_State.touchY[0]/60;
+
+			  // Lineas=Y; Columnas=X
+			  if(touchedX <= 7)
+			  {
+				  touchedX = TS_State.touchY[0]/60;
+				  touchedY = TS_State.touchX[0]/60;
+			  }
 
 		  }
-		  else if((uint32_t)TS_State.touchDetected == 0)
+		  else if(TS_State.touchDetected == 0)
 		  {
 			  alreadyTouched=0;
 		  }
-
 	}
 
 }
@@ -122,6 +138,124 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		twoSecondsPass = 1;
 	}
+	else if(htim->Instance == TIM7)
+	{
+		touchRefresh = 1;
+	}
+}
+
+void mainMenu(void)
+{
+	////////////////////////////////////
+	//JUGAR JUEGO
+
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_FillRect(200, 150, BSP_LCD_GetXSize()-400, BSP_LCD_GetYSize()-250);
+
+	//BSP_LCD_SetFont(&Font48);
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(tempStr1, "PLAY GAME");
+	BSP_LCD_DisplayStringAt(300, LINE(200), (uint8_t*) tempStr1, CENTER_MODE);
+
+	////////////////////////////////////
+	//1 JUGADOR
+
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_FillRect(100, 250, BSP_LCD_GetXSize()-600, BSP_LCD_GetYSize()-300);
+
+	//BSP_LCD_SetFont(&Font48);
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(tempStr1, "1 PLAYER");
+	BSP_LCD_DisplayStringAt(150, LINE(300), (uint8_t*) tempStr1, CENTER_MODE);
+
+	////////////////////////////////////
+	//2 JUGADORES
+
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_FillRect(500, 250, BSP_LCD_GetXSize()-500, BSP_LCD_GetYSize()-300);
+
+	//BSP_LCD_SetFont(&Font48);
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(tempStr1, "2 PLAYERS");
+	BSP_LCD_DisplayStringAt(550, LINE(300), (uint8_t*) tempStr1, CENTER_MODE);
+}
+//función importante del programa donde pasa todo el juego
+uint8_t mainCycle(void)
+{
+	char tempStr[50];
+
+    uint8_t playeri, playerj;//podria hacerlo con 4 variables
+    uint8_t availablePosition[8*8], numAvailablePosition;
+
+	////////////////////////////
+	// Player 1
+
+	uint8_t validPosition = 0;
+	getAvailableMoves(1, availablePosition, &numAvailablePosition);
+
+	if(numAvailablePosition == 0)
+	{
+		return 0;
+	}
+
+
+	sprintf(tempStr, "P1 Turn");
+	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+
+	while (validPosition == 0)
+	{
+		// VER POSICAO NO TOUCHSCREEN
+		playeri = touchedX;
+		playerj = touchedY;
+
+		validPosition = insertMove(playeri, playerj, 1, availablePosition, numAvailablePosition);
+	}
+
+	printBoard();//vuelve a imprimir el tablero
+
+
+	////////////////////////////
+	// Player 2
+
+	validPosition = 0;
+	getAvailableMoves(2, availablePosition, &numAvailablePosition);
+
+	if(numAvailablePosition == 0)
+	{
+		return 0;
+	}
+
+	sprintf(tempStr, "P2 Turn");
+	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+
+	while (validPosition == 0)
+	{
+		if(numberPlayers == 2)
+		{
+			playeri = touchedX;
+			playerj = touchedY;
+		}
+		else // AI player
+		{
+			uint8_t selectedPosition = availablePosition[0];
+
+			playeri = (selectedPosition / 10) - 1;//la función insertMove requiere los parametros separados
+			playerj = (selectedPosition % 10) - 1;
+
+		}
+
+		validPosition = insertMove(playeri, playerj, 2, availablePosition, numAvailablePosition);
+	}
+
+	printBoard();//vuelve a imprimir el tablero
+
+	return numAvailablePosition;
 }
 
 /* USER CODE END 0 */
@@ -168,13 +302,18 @@ int main(void)
   MX_ADC1_Init();
   MX_DSIHOST_DSI_Init();
   MX_TIM6_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
+  BSP_LED_Init(LED1);
   BSP_LCD_Init();
   LCD_Config();
   HAL_ADC_Start_IT(&hadc1);
   BSP_TS_Init(BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
   BSP_TS_ITConfig();
   HAL_TIM_Base_Start_IT(&htim6);
+  HAL_TIM_Base_Start_IT(&htim7);
+
+ // BSP_PB_Init(BUTTON_INT, BUTTON_MODE_EXTI);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -185,17 +324,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
 	  ////////////////////////////////////
 	  // TEMPERATURE
-
+/*
 	  if(twoSecondsPass == 1)
-	  	{
-
+	  {
 		  temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;
 
 		  // Display temperature on the lcd
 		  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-		  BSP_LCD_FillRect(480, 50, BSP_LCD_GetXSize()-480, BSP_LCD_GetYSize()-50);
+		  BSP_LCD_FillRect(485, 50, BSP_LCD_GetXSize()-485, BSP_LCD_GetYSize()-50);
 
 		  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 		  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
@@ -205,20 +344,22 @@ int main(void)
 		  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) tempStr, RIGHT_MODE);
 
 		  twoSecondsPass = 0;
-	  	}
+	  }
 
 	  ////////////////////////////////////
 	  // TOUCH SCREEN
 
-	  /*if(HAL_GetTick() >= init_tick2 + 50)
+	  if(touchRefresh==1)
 	  {
-		  init_tick2 = HAL_GetTick();
+		  touchRefresh = 0;
 
-		  sprintf(tempStr, "X: %d Y: %d", touchedX, touchedY);
-		  BSP_LCD_DisplayStringAt(20, LINE(5), (uint8_t*) tempStr, RIGHT_MODE);
+		  // No more moves
+		  if(mainCycle() == 0)
+		  {
+				sprintf(tempStr, "GAME OVER!");
+				BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+		  }
 	  }*/
-
-
    }
   /* USER CODE END 3 */
 }
@@ -601,6 +742,44 @@ static void MX_TIM6_Init(void)
 
 }
 
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 9999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 99;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
 /* FMC initialization function */
 static void MX_FMC_Init(void)
 {
@@ -664,6 +843,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOI_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOJ_CLK_ENABLE();
 
@@ -673,7 +853,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PA0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
@@ -682,11 +871,11 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 static void LCD_Config(void)
 {
-  uint32_t  lcd_status = LCD_OK;
+  uint32_t  lcd_status;
 
   /* Initialize the LCD */
   lcd_status = BSP_LCD_Init();
-  while(lcd_status != LCD_OK);//si no fuera ok estaría en ciclo infinito
+  while(lcd_status != LCD_OK);//si LCD_init no fuera ok estaría en ciclo infinito
 
   BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
 
@@ -698,9 +887,11 @@ static void LCD_Config(void)
   BSP_LCD_SetFont(&Font24);
   BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
   BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-  BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE);
+  BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE);//funcion quiere uint8_t
 
-  BSP_LCD_DrawBitmap(0, 0, image);
+  //BSP_LCD_DrawBitmap(0, 0, image);
+ // init_game();
+//  mainMenu();
 
 }
 

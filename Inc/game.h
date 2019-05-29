@@ -22,10 +22,14 @@ void init_game(void);
 //imprime el tablero
 void printBoard();
 
+void printInfo(void);
+
 void flip(uint8_t player, uint8_t i, uint8_t j);
 
 void getAvailableMoves(uint8_t player, uint8_t availablePosition[], uint8_t *numAvailablePosition);
 
 int insertMove(uint8_t i, uint8_t j, uint8_t player, uint8_t availablePosition[], uint8_t numAvailablePosition);//como necesito de saber las jugadas en el tablero, paso la matrix por parametros
+
+void countPieces (uint8_t *player1Counter, uint8_t *player2Counter);
 
 #endif /* GAME_H_ */

@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32f769i_discovery.h"
@@ -82,18 +83,23 @@ SDRAM_HandleTypeDef hsdram1;
 /* USER CODE BEGIN PV */
 int ADC1value;
 TS_StateTypeDef TS_State;
-
+char auxStr[30];
 
 uint8_t alreadyTouched=0;
 uint8_t touchedX, touchedY;
-uint16_t touchedPosX, touchedPosY;
 uint8_t twoSecondsPass=0;
-uint8_t touchRefresh=0;
 uint8_t numberPlayers = 2;
+uint8_t counterTurn=20;
+uint8_t passCounter1=0;
+uint8_t passCounter2=0;
+uint16_t touchedPosX, touchedPosY;
+uint16_t counterGame=0;
 
-// Fase 1 - main menu; fase 2 - jogo
+
+// Fase 1 - main menu; fase 2 - jogo; fase 3 - pos juego
 uint8_t programPhase = 1;
 uint8_t resetPressed = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -176,7 +182,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 	else if(htim->Instance == TIM7)
 	{
-		touchRefresh = 1;
+		counterTurn--;
+		counterGame++;
 	}
 }
 
@@ -190,6 +197,7 @@ void mainMenu(void)
 
 		init_game();
 		programPhase=2;
+		counterGame = 0;
 	}
 	else if (insideRectangle(x1Player, y1Player, width1Player, height1Player)==1)
 	{
@@ -220,39 +228,55 @@ void mainMenu(void)
 
 void printMainMenu(void)
 {
-	char tempStr1[10];
 	BSP_LCD_SetBackColor(backColor);
 	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
 
-    BSP_LCD_DrawBitmap(0, 0, image);
+   // BSP_LCD_DrawBitmap(0, 0, image);
 
 	BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"REVERSI", CENTER_MODE);//funcion quiere uint8_t
 
 	////////////////////////////////////
 	//JUGAR JUEGO
 
-	sprintf(tempStr1, "PLAY GAME");
-	BSP_LCD_DisplayStringAt(0, 200, (uint8_t*) tempStr1, CENTER_MODE);
+	sprintf(auxStr, "PLAY GAME");
+	BSP_LCD_DisplayStringAt(0, 200, (uint8_t*) auxStr, CENTER_MODE);
 
 	////////////////////////////////////
 	//1 JUGADOR
 
-	sprintf(tempStr1, "1 PLAYER");
-	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, LEFT_MODE);
+	sprintf(auxStr, "1 PLAYER");
+	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) auxStr, LEFT_MODE);
 
 	////////////////////////////////////
 	//2 JUGADORES
 
-	sprintf(tempStr1, "2 PLAYERS");
-	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, RIGHT_MODE);
+	sprintf(auxStr, "2 PLAYERS");
+	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) auxStr, RIGHT_MODE);
 }
 
+void printTime(void)
+{
+	uint8_t counterMin = 0;
+
+	BSP_LCD_SetTextColor(LCD_COLOR_RED);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(auxStr, "Time remaining: %.2d", counterTurn);
+	BSP_LCD_DisplayStringAt(3, LINE(18), (uint8_t*) auxStr, RIGHT_MODE);
+
+	counterMin = counterGame/60;
+
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(auxStr, "Total time: %.2d:%.2d", counterMin, counterGame %60);
+
+	BSP_LCD_DisplayStringAt(10, LINE(11), (uint8_t*) auxStr, RIGHT_MODE);
+}
 
 //función importante del programa donde pasa todo el juego
 uint8_t mainCycle(void)
 {
-	char tempStr[50];
-
     uint8_t playeri, playerj;//podria hacerlo con 4 variables
     uint8_t availablePosition[8*8], numAvailablePosition;
 
@@ -267,23 +291,39 @@ uint8_t mainCycle(void)
 		return 0;
 	}
 
-
-	sprintf(tempStr, "P1 Turn");
-	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+	sprintf(auxStr, "Player 1 Turn");
+	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
+	counterTurn = 20;
 
 	while (validPosition == 0)
 	{
+		printTime();
+
+		if(counterTurn == 0)
+		{
+			passCounter1++;
+
+			if(passCounter1 == 3)
+			{
+				return 1;
+			}
+
+			break;
+		}
+
 		if(resetPressed == 1)
 		{
 			return 1;
 		}
 
-		// VER POSICAO NO TOUCHSCREEN
+		// VER POSICION EN LA TOUCH SCREEN
 		playeri = touchedX;
 		playerj = touchedY;
 
 		validPosition = insertMove(playeri, playerj, 1, availablePosition, numAvailablePosition);
 	}
+
+	printInfo();
 
 	printBoard();//vuelve a imprimir el tablero
 
@@ -292,6 +332,7 @@ uint8_t mainCycle(void)
 	// Player 2
 
 	validPosition = 0;
+	counterTurn = 20;
 	getAvailableMoves(2, availablePosition, &numAvailablePosition);
 
 	if(numAvailablePosition == 0)
@@ -299,11 +340,25 @@ uint8_t mainCycle(void)
 		return 0;
 	}
 
-	sprintf(tempStr, "P2 Turn");
-	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+	sprintf(auxStr, "Player 2 Turn");
+	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
 
 	while (validPosition == 0)
 	{
+		printTime();
+
+		if(counterTurn == 0)
+		{
+			passCounter2++;
+
+			if(passCounter2 == 3)
+			{
+				return 1;
+			}
+
+			break;
+		}
+
 		if(resetPressed == 1)
 		{
 			return 1;
@@ -327,6 +382,7 @@ uint8_t mainCycle(void)
 		validPosition = insertMove(playeri, playerj, 2, availablePosition, numAvailablePosition);
 	}
 
+	printInfo();
 	printBoard();//vuelve a imprimir el tablero
 
 	return numAvailablePosition;
@@ -341,8 +397,9 @@ uint8_t mainCycle(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  char tempStr[50];
   int temperature;
+  uint8_t player1Counter, player2Counter;
+  uint8_t winner;
   /* USER CODE END 1 */
   
 
@@ -378,8 +435,6 @@ int main(void)
   MX_TIM6_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  BSP_LED_Init(LED2);
-  BSP_LCD_Init();
   LCD_Config();
   HAL_ADC_Start_IT(&hadc1);
   BSP_TS_Init(BSP_LCD_GetXSize(), BSP_LCD_GetYSize());
@@ -418,15 +473,13 @@ int main(void)
 			  temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;
 
 			  // Display temperature on the lcd
-			  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-			  BSP_LCD_FillRect(485, 50, BSP_LCD_GetXSize()-485, BSP_LCD_GetYSize()-50);
 
 			  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 			  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 
-			  sprintf(tempStr, "Temperature %d C", temperature);
+			  sprintf(auxStr, "Temperature %d C", temperature);
 
-			  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) tempStr, RIGHT_MODE);
+			  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  twoSecondsPass = 0;
 		  }
@@ -434,16 +487,48 @@ int main(void)
 		  ////////////////////////////////////
 		  // TOUCH SCREEN
 
-		  if(touchRefresh==1)
+		  // No more moves
+		  if(mainCycle() == 0)
 		  {
-			  touchRefresh = 0;
+			  //BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+			  //BSP_LCD_FillRect(485, LINE(5), BSP_LCD_GetXSize()-485, 300);
 
-			  // No more moves
-			  if(mainCycle() == 0)
+			  sprintf(auxStr, "GAME OVER!");
+			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
+
+			  countPieces(&player1Counter, &player2Counter);
+			  if(player1Counter > player2Counter)
 			  {
-					sprintf(tempStr, "GAME OVER!");
-					BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+				 winner = 1;
 			  }
+			  else
+			  {
+				 winner= 2;
+			  }
+
+			  sprintf(auxStr, "Winner = Player %d", winner);
+			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
+
+			  programPhase=3;
+		  }
+
+		  if(passCounter1 == 3)
+		  {
+			  sprintf(auxStr, "GAME OVER!");
+			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
+			  sprintf(auxStr, "Winner = Player2");
+			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
+
+			  programPhase=3;
+		  }
+		  else if(passCounter2 == 3)
+		  {
+			  sprintf(auxStr, "GAME OVER!");
+			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
+			  sprintf(auxStr, "Winner = Player1");
+			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
+
+			  programPhase=3;
 		  }
 	   }
   }
@@ -848,7 +933,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 9999;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 99;
+  htim7.Init.Period = 9999;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {

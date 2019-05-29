@@ -68,6 +68,7 @@ void init_game(void)
     mat[4][3] = 2;
     mat[3][4] = 2;
 
+	printInfo();
     printBoard();
 }
 
@@ -97,6 +98,55 @@ void printBoard(void)
     }
 }
 
+void printInfo(void)
+{
+	uint8_t player1Counter, player2Counter;
+	char pieces[20];
+	char information[20];
+
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_FillRect(485, LINE(5), BSP_LCD_GetXSize()-485, 350);
+
+    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+    BSP_LCD_DrawHLine(480, LINE(5), 420);
+
+    countPieces(&player1Counter, &player2Counter);
+
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+	sprintf(information, "GAME INFORMATION");
+	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) information, RIGHT_MODE);
+
+	sprintf(pieces, "Pieces Ply. 1 = %.2d", player1Counter);
+	BSP_LCD_DisplayStringAt(5, LINE(8), (uint8_t*) pieces, RIGHT_MODE);
+
+	sprintf(pieces, "Pieces Ply. 2 = %.2d", player2Counter);
+	BSP_LCD_DisplayStringAt(5, LINE(9), (uint8_t*) pieces, RIGHT_MODE);
+
+}
+
+//hace el recuento despues de cada movimiento de las fichas de cada jugador
+void countPieces (uint8_t *player1Counter, uint8_t *player2Counter)
+{
+    *player1Counter=0;
+    *player2Counter=0;
+
+    for(uint8_t i=0; i<8; i++)
+    {
+        for(uint8_t j=0; j<8; j++)
+        {
+            if(mat[i][j] == 1)
+            {
+                (*player1Counter)++;
+            }
+            else if(mat[i][j] == 2)
+            {
+                (*player2Counter)++;
+            }
+        }
+    }
+}
 
 //cambia la pieza del jugador opuesto
 //asumese que i e j ya son contados desde 0 hasta 7 en lugar de 1 a 8

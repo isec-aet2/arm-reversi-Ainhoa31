@@ -316,8 +316,7 @@ uint8_t mainCycle(void)
 		}
 		else // AI player
 		{
-			//HAL_Delay(1000);
-			while(twoSecondsPass == 0);
+			HAL_Delay(1000);
 			uint8_t selectedPosition = availablePosition[0];
 
 			playeri = (selectedPosition / 10) - 1;//la función insertMove requiere los parametros separados

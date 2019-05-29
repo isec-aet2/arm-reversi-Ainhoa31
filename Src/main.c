@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -30,7 +31,6 @@
 #include "stm32f7xx_hal_adc.h"
 #include "game.h"
 #include "menu.h"
-//#include "fatfs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -75,6 +75,8 @@ DSI_HandleTypeDef hdsi;
 
 LTDC_HandleTypeDef hltdc;
 
+SD_HandleTypeDef hsd2;
+
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
 
@@ -92,6 +94,8 @@ uint8_t numberPlayers = 2;
 uint8_t counterTurn=20;
 uint8_t passCounter1=0;
 uint8_t passCounter2=0;
+uint8_t counterMin = 0;
+
 uint16_t touchedPosX, touchedPosY;
 uint16_t counterGame=0;
 
@@ -99,6 +103,7 @@ uint16_t counterGame=0;
 // Fase 1 - main menu; fase 2 - jogo; fase 3 - pos juego
 uint8_t programPhase = 1;
 uint8_t resetPressed = 0;
+uint8_t writeToFile = 0;
 
 /* USER CODE END PV */
 
@@ -112,6 +117,7 @@ static void MX_ADC1_Init(void);
 static void MX_DSIHOST_DSI_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_TIM7_Init(void);
+static void MX_SDMMC2_SD_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void LCD_Config(void);
@@ -120,11 +126,14 @@ static void LCD_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+//Interrupción del ADC
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	ADC1value = HAL_ADC_GetValue(hadc);//Leer el valor ADC
+	ADC1value = HAL_ADC_GetValue(hadc);//Va a guardar el valor convertido de ADC, esta int va a ser llamada cuando el ADC termina la conversión
 }
 
+//Interrupción generada por el botón y para el touch screen
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_0)
@@ -135,23 +144,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 	if(GPIO_Pin == GPIO_PIN_13)
 	{
-		  BSP_TS_GetState(&TS_State);
+		  BSP_TS_GetState(&TS_State);//funcion del sistema que va a obtener el estado del TS y lo va a guardar en el TS_State
 
 		  if(TS_State.touchDetected >= 1 && alreadyTouched==0)
 		  {
 			  alreadyTouched=1;
 
 			  // Lineas=Y; Columnas=X
-			  if(touchedX <= 7)
+			  // A grid so vai estar entre 0 e 480 entao ao dividir por 60 vai estar entre 0 e 7 que é o nosso tabuleiro
+			  if(TS_State.touchX[0]/60 <= 7)
 			  {
 				  touchedX = TS_State.touchY[0]/60;
 				  touchedY = TS_State.touchX[0]/60;
 			  }
-
+			  //guardamos la posición
 			  touchedPosX = TS_State.touchX[0];
 			  touchedPosY = TS_State.touchY[0];
 
 		  }
+		  //protección toque continuo
 		  else if(TS_State.touchDetected == 0)
 		  {
 			  alreadyTouched=0;
@@ -160,6 +171,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 }
 
+//Interrupción de los timers
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if(htim->Instance == TIM6)//utilizado para saber cuando pasam 2 segundos
+	{
+		twoSecondsPass = 1;
+	}
+	else if(htim->Instance == TIM7)//utilizado para cada segundo
+	{
+		counterTurn--;
+		counterGame++;
+	}
+}
+
+//retorna 1 si tocamos dentro del rectangulo y 0 en caso contrario
 uint8_t insideRectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 {
 	if(touchedPosX >= x && touchedPosX <= x+width)
@@ -174,19 +200,7 @@ uint8_t insideRectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-	if(htim->Instance == TIM6)
-	{
-		twoSecondsPass = 1;
-	}
-	else if(htim->Instance == TIM7)
-	{
-		counterTurn--;
-		counterGame++;
-	}
-}
-
+//función del menú de inicio, en ella vemos si el utilizador cargó dentro de algún rectangulo
 void mainMenu(void)
 {
 	char tempStr1[10];
@@ -226,12 +240,13 @@ void mainMenu(void)
 	}
 }
 
+//imprime el menú principal
 void printMainMenu(void)
 {
 	BSP_LCD_SetBackColor(backColor);
 	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
 
-   // BSP_LCD_DrawBitmap(0, 0, image);
+    BSP_LCD_DrawBitmap(0, 0, image);
 
 	BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"REVERSI", CENTER_MODE);//funcion quiere uint8_t
 
@@ -254,9 +269,9 @@ void printMainMenu(void)
 	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) auxStr, RIGHT_MODE);
 }
 
+//función que imprime el tiempo de jugada y el tiempo total
 void printTime(void)
 {
-	uint8_t counterMin = 0;
 
 	BSP_LCD_SetTextColor(LCD_COLOR_RED);
 	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
@@ -274,10 +289,31 @@ void printTime(void)
 	BSP_LCD_DisplayStringAt(10, LINE(11), (uint8_t*) auxStr, RIGHT_MODE);
 }
 
+void printTemperature(void)
+{
+	int temperature;
+
+	if(twoSecondsPass == 1)
+    {
+	    temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;//convierte el valor de ADC para temperatura y lo guarda
+
+	    // Display temperature on the lcd
+
+	    BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	    BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+    	sprintf(auxStr, "Temperature %d C", temperature);
+
+	    BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) auxStr, RIGHT_MODE);
+
+	    twoSecondsPass = 0;
+    }
+}
+
 //función importante del programa donde pasa todo el juego
 uint8_t mainCycle(void)
 {
-    uint8_t playeri, playerj;//podria hacerlo con 4 variables
+    uint8_t playeri, playerj;
     uint8_t availablePosition[8*8], numAvailablePosition;
 
 	////////////////////////////
@@ -288,16 +324,17 @@ uint8_t mainCycle(void)
 
 	if(numAvailablePosition == 0)
 	{
-		return 0;
+		return 0;// 0 significa que no hay posiciones disponebles
 	}
 
 	sprintf(auxStr, "Player 1 Turn");
 	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
 	counterTurn = 20;
 
-	while (validPosition == 0)
+	while (validPosition == 0)//mientras la posicion del usuario no fuera valido permanece en el while
 	{
 		printTime();
+		printTemperature();
 
 		if(counterTurn == 0)
 		{
@@ -305,22 +342,22 @@ uint8_t mainCycle(void)
 
 			if(passCounter1 == 3)
 			{
-				return 1;
+				return 1;//para ser diferente a 0, sale debido a que ya pasó 3 turnos
 			}
 
-			break;
+			break;//cuando pasa un turno sale del ciclo while para continuar para el jugador 2
 		}
 
-		if(resetPressed == 1)
+		if(resetPressed == 1)//en caso de presionar el boton del reset sale de la función
 		{
 			return 1;
 		}
 
 		// VER POSICION EN LA TOUCH SCREEN
-		playeri = touchedX;
-		playerj = touchedY;
+		playeri = touchedX;//ahora son lineas, cambiamos arriba
+		playerj = touchedY;//columnas
 
-		validPosition = insertMove(playeri, playerj, 1, availablePosition, numAvailablePosition);
+		validPosition = insertMove(playeri, playerj, 1, availablePosition, numAvailablePosition);//si consigue insertar validPosition es 1, en caso contrario es 0
 	}
 
 	printInfo();
@@ -346,6 +383,7 @@ uint8_t mainCycle(void)
 	while (validPosition == 0)
 	{
 		printTime();
+		printTemperature();
 
 		if(counterTurn == 0)
 		{
@@ -397,9 +435,10 @@ uint8_t mainCycle(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-  int temperature;
   uint8_t player1Counter, player2Counter;
   uint8_t winner;
+  uint nBytes;
+
   /* USER CODE END 1 */
   
 
@@ -434,6 +473,8 @@ int main(void)
   MX_DSIHOST_DSI_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
+  MX_SDMMC2_SD_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
   LCD_Config();
   HAL_ADC_Start_IT(&hadc1);
@@ -443,6 +484,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim7);
 
  // BSP_PB_Init(BUTTON_INT, BUTTON_MODE_EXTI);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -462,36 +504,16 @@ int main(void)
 			  printMainMenu();
 		  }
 
-		  mainMenu();
+		  mainMenu();//llamamos a esta función para ver si la persona carga en algún sitio
 	  }
 	  else if(programPhase == 2)
 	  {
-		  ////////////////////////////////////
-		  // TEMPERATURE
-		  if(twoSecondsPass == 1)
-		  {
-			  temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;
-
-			  // Display temperature on the lcd
-
-			  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-			  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-
-			  sprintf(auxStr, "Temperature %d C", temperature);
-
-			  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) auxStr, RIGHT_MODE);
-
-			  twoSecondsPass = 0;
-		  }
 
 		  ////////////////////////////////////
 		  // TOUCH SCREEN
 
-		  // No more moves
-		  if(mainCycle() == 0)
+		  if(mainCycle() == 0)//No más movimientos
 		  {
-			  //BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-			  //BSP_LCD_FillRect(485, LINE(5), BSP_LCD_GetXSize()-485, 300);
 
 			  sprintf(auxStr, "GAME OVER!");
 			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
@@ -510,6 +532,7 @@ int main(void)
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  programPhase=3;
+			  writeToFile = 1;
 		  }
 
 		  if(passCounter1 == 3)
@@ -519,7 +542,9 @@ int main(void)
 			  sprintf(auxStr, "Winner = Player2");
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
+			  winner = 2;
 			  programPhase=3;
+			  writeToFile = 1;
 		  }
 		  else if(passCounter2 == 3)
 		  {
@@ -528,9 +553,45 @@ int main(void)
 			  sprintf(auxStr, "Winner = Player1");
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
+			  winner = 1;
 			  programPhase=3;
+			  writeToFile = 1;
 		  }
 	   }
+
+	  if(programPhase==3)
+	  {
+		  printTemperature();
+
+		  if(writeToFile == 1)
+		  {
+			  writeToFile = 0;
+
+			  if( f_mount (&SDFatFS, SDPath, 0)!=FR_OK)
+				 Error_Handler();
+
+			  if(f_open(&SDFile, "Reversi.txt", FA_WRITE | FA_CREATE_ALWAYS)!=FR_OK)
+				 Error_Handler();
+
+			  sprintf(auxStr, "Winner = Player %d\n", winner);
+			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+				 Error_Handler();
+
+			  sprintf(auxStr, "Pieces Ply. 1 = %.2d\n", player1Counter);
+			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+				 Error_Handler();
+
+			  sprintf(auxStr, "Pieces Ply. 2 = %.2d\n", player2Counter);
+			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+				 Error_Handler();
+
+			  sprintf(auxStr, "Total time: %.2d:%.2d\n", counterMin, counterGame %60);
+			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+				 Error_Handler();
+
+			  f_close(&SDFile);
+		  }
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -558,7 +619,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 25;
   RCC_OscInitStruct.PLL.PLLN = 400;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLQ = 8;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -582,13 +643,16 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_SDMMC2
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 192;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
   PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
   PeriphClkInitStruct.PLLSAIDivQ = 1;
   PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_2;
+  PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
+  PeriphClkInitStruct.Sdmmc2ClockSelection = RCC_SDMMC2CLKSOURCE_CLK48;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -876,6 +940,34 @@ static void MX_LTDC_Init(void)
 }
 
 /**
+  * @brief SDMMC2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SDMMC2_SD_Init(void)
+{
+
+  /* USER CODE BEGIN SDMMC2_Init 0 */
+
+  /* USER CODE END SDMMC2_Init 0 */
+
+  /* USER CODE BEGIN SDMMC2_Init 1 */
+
+  /* USER CODE END SDMMC2_Init 1 */
+  hsd2.Instance = SDMMC2;
+  hsd2.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
+  hsd2.Init.ClockBypass = SDMMC_CLOCK_BYPASS_DISABLE;
+  hsd2.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
+  hsd2.Init.BusWide = SDMMC_BUS_WIDE_1B;
+  hsd2.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+  hsd2.Init.ClockDiv = 0;
+  /* USER CODE BEGIN SDMMC2_Init 2 */
+
+  /* USER CODE END SDMMC2_Init 2 */
+
+}
+
+/**
   * @brief TIM6 Initialization Function
   * @param None
   * @retval None
@@ -1009,8 +1101,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOI_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
@@ -1021,6 +1113,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : PI13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PI15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
 
@@ -1066,6 +1164,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
+	BSP_LCD_DisplayStringAt(10, LINE(15), "ERROR IN SD CARD", CENTER_MODE);
 
   /* USER CODE END Error_Handler_Debug */
 }

@@ -29,6 +29,7 @@
 #include "stm32f7xx_hal_adc.h"
 #include "game.h"
 #include "menu.h"
+//#include "fatfs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -92,6 +93,7 @@ uint8_t numberPlayers = 2;
 
 // Fase 1 - main menu; fase 2 - jogo
 uint8_t programPhase = 1;
+uint8_t resetPressed = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,7 +123,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_0)
 	{
-		init_game();
+		resetPressed = 1;
+		programPhase = 1;
 	}
 
 	if(GPIO_Pin == GPIO_PIN_13)
@@ -270,6 +273,11 @@ uint8_t mainCycle(void)
 
 	while (validPosition == 0)
 	{
+		if(resetPressed == 1)
+		{
+			return 1;
+		}
+
 		// VER POSICAO NO TOUCHSCREEN
 		playeri = touchedX;
 		playerj = touchedY;
@@ -296,6 +304,11 @@ uint8_t mainCycle(void)
 
 	while (validPosition == 0)
 	{
+		if(resetPressed == 1)
+		{
+			return 1;
+		}
+
 		if(numberPlayers == 2)
 		{
 			playeri = touchedX;
@@ -303,6 +316,8 @@ uint8_t mainCycle(void)
 		}
 		else // AI player
 		{
+			//HAL_Delay(1000);
+			while(twoSecondsPass == 0);
 			uint8_t selectedPosition = availablePosition[0];
 
 			playeri = (selectedPosition / 10) - 1;//la función insertMove requiere los parametros separados
@@ -387,6 +402,12 @@ int main(void)
 
 	  if(programPhase == 1)
 	  {
+		  if(resetPressed == 1)
+		  {
+			  resetPressed = 0;
+			  printMainMenu();
+		  }
+
 		  mainMenu();
 	  }
 	  else if(programPhase == 2)

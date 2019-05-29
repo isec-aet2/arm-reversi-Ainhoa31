@@ -1,6 +1,7 @@
 game.c:6:6:drawGrid	16	static
-game.c:37:6:init_game	16	static
-game.c:60:6:printBoard	16	static
-game.c:88:6:flip	40	static
-game.c:318:6:getAvailableMoves	56	static
-game.c:528:5:insertMove	24	static
+game.c:37:6:gameTitle	8	static
+game.c:51:6:init_game	16	static
+game.c:75:6:printBoard	16	static
+game.c:103:6:flip	40	static
+game.c:333:6:getAvailableMoves	56	static
+game.c:543:5:insertMove	24	static

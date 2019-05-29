@@ -34,8 +34,23 @@ void drawGrid(void)
 	}
 }
 
+void gameTitle(void)
+{
+
+  BSP_LCD_Clear(LCD_COLOR_WHITE);
+
+  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+  BSP_LCD_FillRect(480, 0, 320, 50);
+  BSP_LCD_SetFont(&Font24);
+  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+  BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+  BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE); //función quiere uint8_t
+
+}
+
 void init_game(void)
 {
+	gameTitle();
 	drawGrid();
 
     // Clear the board

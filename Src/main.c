@@ -20,7 +20,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32f769i_discovery.h"
@@ -28,6 +27,8 @@
 #include "stm32f769i_discovery_ts.h"
 #include "stdio.h"
 #include "stm32f7xx_hal_adc.h"
+#include "game.h"
+#include "menu.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +44,19 @@
 #define AVG_SLOPE 25
 #define AMBIENT_TEMP 25
 #define BUTTON_INT PA0
+#define x1Player 55
+#define x2Players 550
+#define xPlayerGame 250
+#define y1Player 330
+#define y2Players 330
+#define yPlayerGame 180
+#define width1Player 185
+#define width2Players 185
+#define widthPlayerGame 295
+#define height1Player 65
+#define height2Players 65
+#define heightPlayerGame 70
+#define backColor 0xFFAC7644
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -67,13 +81,17 @@ SDRAM_HandleTypeDef hsdram1;
 /* USER CODE BEGIN PV */
 int ADC1value;
 TS_StateTypeDef TS_State;
-char tempStr1[50];
+
 
 uint8_t alreadyTouched=0;
 uint8_t touchedX, touchedY;
+uint16_t touchedPosX, touchedPosY;
 uint8_t twoSecondsPass=0;
 uint8_t touchRefresh=0;
 uint8_t numberPlayers = 2;
+
+// Fase 1 - main menu; fase 2 - jogo
+uint8_t programPhase = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,11 +119,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
-
 	if(GPIO_Pin == GPIO_PIN_0)
 	{
-		 BSP_LED_Toggle(LED2);
+		init_game();
 	}
 
 	if(GPIO_Pin == GPIO_PIN_13)
@@ -123,12 +139,29 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 				  touchedY = TS_State.touchX[0]/60;
 			  }
 
+			  touchedPosX = TS_State.touchX[0];
+			  touchedPosY = TS_State.touchY[0];
+
 		  }
 		  else if(TS_State.touchDetected == 0)
 		  {
 			  alreadyTouched=0;
 		  }
 	}
+
+}
+
+uint8_t insideRectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+{
+	if(touchedPosX >= x && touchedPosX <= x+width)
+	{
+		if(touchedPosY >= y && touchedPosY <= y+height)
+		{
+			return 1;
+		}
+	}
+
+	return 0;
 
 }
 
@@ -146,45 +179,72 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void mainMenu(void)
 {
+	char tempStr1[10];
+
+	if(insideRectangle(xPlayerGame, yPlayerGame, widthPlayerGame, heightPlayerGame)==1)
+	{
+    	BSP_LCD_Clear(LCD_COLOR_WHITE);
+
+		init_game();
+		programPhase=2;
+	}
+	else if (insideRectangle(x1Player, y1Player, width1Player, height1Player)==1)
+	{
+		numberPlayers=1;
+
+		BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+		sprintf(tempStr1, "1 PLAYER");
+		BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, LEFT_MODE);
+
+		BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+		sprintf(tempStr1, "2 PLAYERS");
+		BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, RIGHT_MODE);
+
+	}
+	else if (insideRectangle(x2Players, y2Players, width2Players, height2Players)==1)
+	{
+		numberPlayers=2;
+
+		BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+		sprintf(tempStr1, "1 PLAYER");
+		BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, LEFT_MODE);
+
+		BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+		sprintf(tempStr1, "2 PLAYERS");
+		BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, RIGHT_MODE);
+	}
+}
+
+void printMainMenu(void)
+{
+	char tempStr1[10];
+	BSP_LCD_SetBackColor(backColor);
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+
+    BSP_LCD_DrawBitmap(0, 0, image);
+
+	BSP_LCD_DisplayStringAt(0, 10, (uint8_t *)"REVERSI", CENTER_MODE);//funcion quiere uint8_t
+
 	////////////////////////////////////
 	//JUGAR JUEGO
 
-	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-	BSP_LCD_FillRect(200, 150, BSP_LCD_GetXSize()-400, BSP_LCD_GetYSize()-250);
-
-	//BSP_LCD_SetFont(&Font48);
-	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-
 	sprintf(tempStr1, "PLAY GAME");
-	BSP_LCD_DisplayStringAt(300, LINE(200), (uint8_t*) tempStr1, CENTER_MODE);
+	BSP_LCD_DisplayStringAt(0, 200, (uint8_t*) tempStr1, CENTER_MODE);
 
 	////////////////////////////////////
 	//1 JUGADOR
 
-	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-	BSP_LCD_FillRect(100, 250, BSP_LCD_GetXSize()-600, BSP_LCD_GetYSize()-300);
-
-	//BSP_LCD_SetFont(&Font48);
-	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-
 	sprintf(tempStr1, "1 PLAYER");
-	BSP_LCD_DisplayStringAt(150, LINE(300), (uint8_t*) tempStr1, CENTER_MODE);
+	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, LEFT_MODE);
 
 	////////////////////////////////////
 	//2 JUGADORES
 
-	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-	BSP_LCD_FillRect(500, 250, BSP_LCD_GetXSize()-500, BSP_LCD_GetYSize()-300);
-
-	//BSP_LCD_SetFont(&Font48);
-	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-
 	sprintf(tempStr1, "2 PLAYERS");
-	BSP_LCD_DisplayStringAt(550, LINE(300), (uint8_t*) tempStr1, CENTER_MODE);
+	BSP_LCD_DisplayStringAt(80, 350, (uint8_t*) tempStr1, RIGHT_MODE);
 }
+
+
 //función importante del programa donde pasa todo el juego
 uint8_t mainCycle(void)
 {
@@ -304,7 +364,7 @@ int main(void)
   MX_TIM6_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  BSP_LED_Init(LED1);
+  BSP_LED_Init(LED2);
   BSP_LCD_Init();
   LCD_Config();
   HAL_ADC_Start_IT(&hadc1);
@@ -325,42 +385,48 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  ////////////////////////////////////
-	  // TEMPERATURE
-/*
-	  if(twoSecondsPass == 1)
+	  if(programPhase == 1)
 	  {
-		  temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;
-
-		  // Display temperature on the lcd
-		  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-		  BSP_LCD_FillRect(485, 50, BSP_LCD_GetXSize()-485, BSP_LCD_GetYSize()-50);
-
-		  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-		  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
-
-		  sprintf(tempStr, "Temperature %d C", temperature);
-
-		  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) tempStr, RIGHT_MODE);
-
-		  twoSecondsPass = 0;
+		  mainMenu();
 	  }
-
-	  ////////////////////////////////////
-	  // TOUCH SCREEN
-
-	  if(touchRefresh==1)
+	  else if(programPhase == 2)
 	  {
-		  touchRefresh = 0;
-
-		  // No more moves
-		  if(mainCycle() == 0)
+		  ////////////////////////////////////
+		  // TEMPERATURE
+		  if(twoSecondsPass == 1)
 		  {
-				sprintf(tempStr, "GAME OVER!");
-				BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+			  temperature = ((((ADC1value * VREF)/MAX_CONVERTED_VALUE) - VSENS_AT_AMBIENT_TEMP) * 10 / AVG_SLOPE) + AMBIENT_TEMP;
+
+			  // Display temperature on the lcd
+			  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+			  BSP_LCD_FillRect(485, 50, BSP_LCD_GetXSize()-485, BSP_LCD_GetYSize()-50);
+
+			  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+			  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
+			  sprintf(tempStr, "Temperature %d C", temperature);
+
+			  BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) tempStr, RIGHT_MODE);
+
+			  twoSecondsPass = 0;
 		  }
-	  }*/
-   }
+
+		  ////////////////////////////////////
+		  // TOUCH SCREEN
+
+		  if(touchRefresh==1)
+		  {
+			  touchRefresh = 0;
+
+			  // No more moves
+			  if(mainCycle() == 0)
+			  {
+					sprintf(tempStr, "GAME OVER!");
+					BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) tempStr, RIGHT_MODE);
+			  }
+		  }
+	   }
+  }
   /* USER CODE END 3 */
 }
 
@@ -882,17 +948,7 @@ static void LCD_Config(void)
   /* Clear the LCD */
   BSP_LCD_Clear(LCD_COLOR_WHITE);
 
-  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-  BSP_LCD_FillRect(480, 0, 320, 50);
-  BSP_LCD_SetFont(&Font24);
-  BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-  BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
-  BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE);//funcion quiere uint8_t
-
-  //BSP_LCD_DrawBitmap(0, 0, image);
- // init_game();
-//  mainMenu();
-
+  printMainMenu();
 }
 
 /* USER CODE END 4 */

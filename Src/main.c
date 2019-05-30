@@ -139,7 +139,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if(GPIO_Pin == GPIO_PIN_0)
 	{
 		resetPressed = 1;
-		programPhase = 1;
+		programPhase = 1;//vuelve a la fase1
+		touchedPosX = 0;
+		touchedPosY = 0;
 	}
 
 	if(GPIO_Pin == GPIO_PIN_13)
@@ -152,12 +154,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 			  // Lineas=Y; Columnas=X
 			  // El tablero solo va estar entre 0 e 480 dividimos por 60 y va estar entre 0 e 7
-			  if(TS_State.touchX[0]/60 <= 7)
+			  if(TS_State.touchX[0] <= 480)
 			  {
 				  touchedX = TS_State.touchY[0]/60;
 				  touchedY = TS_State.touchX[0]/60;
 			  }
-			  //guardamos la posición
+			  //guardamos la posición de 0 a 800(para el menú)
 			  touchedPosX = TS_State.touchX[0];
 			  touchedPosY = TS_State.touchY[0];
 
@@ -212,6 +214,8 @@ void mainMenu(void)
 		init_game();
 		programPhase=2;
 		counterGame = 0;
+		passCounter1 = 0;
+		passCounter2 = 0;
 	}
 	else if (insideRectangle(x1Player, y1Player, width1Player, height1Player)==1)
 	{
@@ -272,7 +276,6 @@ void printMainMenu(void)
 //función que imprime el tiempo de jugada y el tiempo total
 void printTime(void)
 {
-
 	BSP_LCD_SetTextColor(LCD_COLOR_RED);
 	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 
@@ -284,11 +287,11 @@ void printTime(void)
 	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 
-	sprintf(auxStr, "Total time: %.2d:%.2d", counterMin, counterGame %60);
-
+	sprintf(auxStr, "Total time: %.2d:%.2d", counterMin, counterGame %60);//modulo de los segundos, que es el resto de la division entera
 	BSP_LCD_DisplayStringAt(10, LINE(11), (uint8_t*) auxStr, RIGHT_MODE);
 }
 
+//función que imprime la temperatura en la pantalla actualizada cada dos segundos
 void printTemperature(void)
 {
 	int temperature;
@@ -303,7 +306,6 @@ void printTemperature(void)
 	    BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 
     	sprintf(auxStr, "Temperature %d C", temperature);
-
 	    BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) auxStr, RIGHT_MODE);
 
 	    twoSecondsPass = 0;
@@ -320,18 +322,18 @@ uint8_t mainCycle(void)
 	// Player 1
 
 	uint8_t validPosition = 0;
-	getAvailableMoves(1, availablePosition, &numAvailablePosition);
+	getAvailableMoves(1, availablePosition, &numAvailablePosition);//recibe el jugador, las posiciones disponibles y el numero de pos. disponibles
 
 	if(numAvailablePosition == 0)
 	{
-		return 0;// 0 significa que no hay posiciones disponebles
+		return 0;// 0 significa que no hay posiciones disponibles
 	}
 
 	sprintf(auxStr, "Player 1 Turn");
 	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
 	counterTurn = 20;
 
-	while (validPosition == 0)//mientras la posicion del usuario no fuera valido permanece en el while
+	while (validPosition == 0)//mientras la posicion del usuario no fuera valida permanece en el while
 	{
 		printTime();
 		printTemperature();
@@ -482,7 +484,7 @@ int main(void)
   BSP_TS_ITConfig();
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start_IT(&htim7);
-
+  BSP_LED_Init(LED1);
  // BSP_PB_Init(BUTTON_INT, BUTTON_MODE_EXTI);
 
   /* USER CODE END 2 */
@@ -520,13 +522,20 @@ int main(void)
 			  if(player1Counter > player2Counter)
 			  {
 				 winner = 1;
+				 sprintf(auxStr, "Winner = Player %d", winner);
+
 			  }
-			  else
+			  else if(player1Counter < player2Counter)
 			  {
 				 winner= 2;
+				 sprintf(auxStr, "Winner = Player %d", winner);
+			  }
+			  else if(player1Counter == player2Counter)
+			  {
+				  winner=0;
+				  sprintf(auxStr, "It's a tie", winner);
 			  }
 
-			  sprintf(auxStr, "Winner = Player %d", winner);
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  programPhase=3;
@@ -564,37 +573,59 @@ int main(void)
 		  if(writeToFile == 1)
 		  {
 			 writeToFile = 0;
-			 if( f_mount (&SDFatFS, SDPath, 0)!=FR_OK)
-			 Error_Handler();
 
-		     FRESULT res = f_open(&SDFile, "Reversi.txt", FA_CREATE_ALWAYS | FA_WRITE);
+			 // Disable ADC as it breaks SD writing
+			  HAL_ADC_Stop_IT(&hadc1);
 
-		     if(res != FR_OK)
-		     {
-		     	sprintf(auxStr, "Error: %d", res);
+			 char auxStr2[150];
 
-			 BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, LEFT_MODE);
-			 Error_Handler();
-		     }
+			 FRESULT res = f_mount (&SDFatFS, SDPath, 0);
 
-		     sprintf(auxStr, "Winner = Player %d\n", winner);
-		     if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-			 Error_Handler();
+		      if(res != FR_OK)
+			  {
+				sprintf(auxStr, "Error in fmount: %d", res);
+				Error_Handler();
+				break;
+			  }
 
-		     sprintf(auxStr, "Pieces Ply. 1 = %.2d\n", player1Counter);
-		     if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-		 	 Error_Handler();
+		      res = f_open(&SDFile, "Rev.txt", FA_CREATE_ALWAYS | FA_WRITE);
 
-	    	  sprintf(auxStr, "Pieces Ply. 2 = %.2d\n", player2Counter);
-	    	  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-	   		  Error_Handler();
+			  if(res != FR_OK)
+			  {
+				sprintf(auxStr, "Error in fopen: %d", res);
+				Error_Handler();
+				break;
+			  }
 
-	    	  sprintf(auxStr, "Total time: %.2d:%.2d\n", counterMin, counterGame %60);
-		      if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-		      Error_Handler();
+			  if(winner == 1 || winner == 2)
+			  {
+				  sprintf(auxStr2, "Winner = Player %d\nPieces Ply. 1 = %.2d\nPieces Ply. 2 = %.2d\nTotal time: %.2d:%.2d\n", winner, player1Counter, player2Counter, counterMin, counterGame %60);
+			  }
+			  else if(winner == 0)
+			  {
+				  sprintf(auxStr2, "It's a tie\nPieces Ply. 1 = %.2d\nPieces Ply. 2 = %.2d\nTotal time: %.2d:%.2d\n", player1Counter, player2Counter, counterMin, counterGame %60);
+		      }
 
-		      f_close(&SDFile);
+			  res = f_write(&SDFile, auxStr2, strlen(auxStr2), &nBytes);
 
+			  if(res != FR_OK)
+			  {
+				sprintf(auxStr, "Error in fwrite: %d", res);
+				Error_Handler();
+				break;
+			  }
+
+			  res = f_close(&SDFile);
+
+			  if(res != FR_OK)
+			  {
+				sprintf(auxStr, "Error in fclose: %d", res);
+				Error_Handler();
+				break;
+			  }
+
+			  // Reenable ADC interrupts
+			 HAL_ADC_Start_IT(&hadc1);
 		  }
 	  }
   }

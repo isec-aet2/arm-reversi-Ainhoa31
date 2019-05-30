@@ -151,7 +151,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			  alreadyTouched=1;
 
 			  // Lineas=Y; Columnas=X
-			  // A grid so vai estar entre 0 e 480 entao ao dividir por 60 vai estar entre 0 e 7 que é o nosso tabuleiro
+			  // El tablero solo va estar entre 0 e 480 dividimos por 60 y va estar entre 0 e 7
 			  if(TS_State.touchX[0]/60 <= 7)
 			  {
 				  touchedX = TS_State.touchY[0]/60;
@@ -508,13 +508,11 @@ int main(void)
 	  }
 	  else if(programPhase == 2)
 	  {
-
 		  ////////////////////////////////////
 		  // TOUCH SCREEN
 
 		  if(mainCycle() == 0)//No más movimientos
 		  {
-
 			  sprintf(auxStr, "GAME OVER!");
 			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
 
@@ -543,7 +541,7 @@ int main(void)
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  winner = 2;
-			  programPhase=3;
+			  programPhase = 3;
 			  writeToFile = 1;
 		  }
 		  else if(passCounter2 == 3)
@@ -554,7 +552,7 @@ int main(void)
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  winner = 1;
-			  programPhase=3;
+			  programPhase =3;
 			  writeToFile = 1;
 		  }
 	   }
@@ -565,31 +563,38 @@ int main(void)
 
 		  if(writeToFile == 1)
 		  {
-			  writeToFile = 0;
+			 writeToFile = 0;
+			 if( f_mount (&SDFatFS, SDPath, 0)!=FR_OK)
+			 Error_Handler();
 
-			  if( f_mount (&SDFatFS, SDPath, 0)!=FR_OK)
-				 Error_Handler();
+		     FRESULT res = f_open(&SDFile, "Reversi.txt", FA_CREATE_ALWAYS | FA_WRITE);
 
-			  if(f_open(&SDFile, "Reversi.txt", FA_WRITE | FA_CREATE_ALWAYS)!=FR_OK)
-				 Error_Handler();
+		     if(res != FR_OK)
+		     {
+		     	sprintf(auxStr, "Error: %d", res);
 
-			  sprintf(auxStr, "Winner = Player %d\n", winner);
-			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-				 Error_Handler();
+			 BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, LEFT_MODE);
+			 Error_Handler();
+		     }
 
-			  sprintf(auxStr, "Pieces Ply. 1 = %.2d\n", player1Counter);
-			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-				 Error_Handler();
+		     sprintf(auxStr, "Winner = Player %d\n", winner);
+		     if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+			 Error_Handler();
 
-			  sprintf(auxStr, "Pieces Ply. 2 = %.2d\n", player2Counter);
-			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-				 Error_Handler();
+		     sprintf(auxStr, "Pieces Ply. 1 = %.2d\n", player1Counter);
+		     if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+		 	 Error_Handler();
 
-			  sprintf(auxStr, "Total time: %.2d:%.2d\n", counterMin, counterGame %60);
-			  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
-				 Error_Handler();
+	    	  sprintf(auxStr, "Pieces Ply. 2 = %.2d\n", player2Counter);
+	    	  if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+	   		  Error_Handler();
 
-			  f_close(&SDFile);
+	    	  sprintf(auxStr, "Total time: %.2d:%.2d\n", counterMin, counterGame %60);
+		      if(f_write(&SDFile, auxStr, strlen(auxStr), &nBytes) !=FR_OK)
+		      Error_Handler();
+
+		      f_close(&SDFile);
+
 		  }
 	  }
   }
@@ -1164,7 +1169,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-	BSP_LCD_DisplayStringAt(10, LINE(15), "ERROR IN SD CARD", CENTER_MODE);
+	BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, CENTER_MODE);
 
   /* USER CODE END Error_Handler_Debug */
 }

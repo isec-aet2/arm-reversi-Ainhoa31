@@ -1,9 +1,9 @@
 game.c:6:6:drawGrid	16	static
 game.c:37:6:gameTitle	8	static
-game.c:51:6:init_game	16	static
-game.c:76:6:printBoard	16	static
-game.c:101:6:printInfo	64	static
-game.c:130:6:countPieces	24	static
-game.c:153:6:flip	40	static
-game.c:383:6:getAvailableMoves	56	static
-game.c:593:5:insertMove	24	static
+game.c:49:6:init_game	16	static
+game.c:74:6:printBoard	16	static
+game.c:99:6:printInfo	64	static
+game.c:128:6:countPieces	24	static
+game.c:151:6:flip	40	static
+game.c:381:6:getAvailableMoves	56	static
+game.c:591:5:insertMove	24	static

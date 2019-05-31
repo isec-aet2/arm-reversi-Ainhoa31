@@ -16,7 +16,7 @@ void drawGrid(void)
 	for(uint8_t i=0; i<=BOARD_SIZE; i++)
 	{
 
-		// for i = 0 the offset would be -2 which breaks the lcd, so we need a special case to set it to 0 instead
+		// Para i=0 el offset seria -2
 		if(i == 0)
 		{
 			offset = 0;
@@ -36,7 +36,6 @@ void drawGrid(void)
 
 void gameTitle(void)
 {
-
   BSP_LCD_Clear(LCD_COLOR_WHITE);
 
   BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
@@ -45,7 +44,6 @@ void gameTitle(void)
   BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
   BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
   BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE); //función quiere uint8_t
-
 }
 
 void init_game(void)
@@ -132,9 +130,9 @@ void countPieces (uint8_t *player1Counter, uint8_t *player2Counter)
     *player1Counter=0;
     *player2Counter=0;
 
-    for(uint8_t i=0; i<8; i++)
+    for(uint8_t i=0; i<BOARD_SIZE; i++)
     {
-        for(uint8_t j=0; j<8; j++)
+        for(uint8_t j=0; j<BOARD_SIZE; j++)
         {
             if(mat[i][j] == 1)
             {
@@ -169,7 +167,7 @@ void flip(uint8_t player, uint8_t i, uint8_t j)
      */
 
     // top left
-    if(i > 0 && j > 0) // we cant check outside of the matrix because (-1, -1) doesnt exist
+    if(i > 0 && j > 0)
     {
         if(mat[i-1][j-1] == oppositePlayer)
         {
@@ -183,7 +181,7 @@ void flip(uint8_t player, uint8_t i, uint8_t j)
                 {
                     while(startI != i && startJ!=j)
                     {
-                        mat[startI][startJ] = player;
+                        mat[startI][startJ] = player;//Aqui muda las fichas
 
                         startI++;
                         startJ++;
@@ -394,13 +392,13 @@ void getAvailableMoves(uint8_t player, uint8_t availablePosition[], uint8_t *num
     }
 
 
-    *numAvailablePosition = 0;
+    *numAvailablePosition = 0;//todavia no sabemos cuantas hay por eso la igualamos a  0
 
     for(int i=0; i<8; i++)
     {
         for(int j=0; j<8; j++)
         {
-            // We need to check if the position i,j is empty (equal to 0). If it isnt, then we continue to the next column
+            //Si encontramos en una posicion i,j algo diferente sabemos que no esta disponible y que tiene que pasar a la prox posicion
             if(mat[i][j] != 0)
                 continue;
 

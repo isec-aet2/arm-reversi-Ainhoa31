@@ -414,6 +414,7 @@ uint8_t mainCycle(void)
 			HAL_Delay(1000);
 			uint8_t selectedPosition = availablePosition[0];
 
+			//convierte selectedPosition en dos posiciones, linea y columna (de 0 a 7)
 			playeri = (selectedPosition / 10) - 1;//la función insertMove requiere los parametros separados
 			playerj = (selectedPosition % 10) - 1;
 
@@ -484,7 +485,6 @@ int main(void)
   BSP_TS_ITConfig();
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Start_IT(&htim7);
-  BSP_LED_Init(LED1);
  // BSP_PB_Init(BUTTON_INT, BUTTON_MODE_EXTI);
 
   /* USER CODE END 2 */
@@ -533,7 +533,7 @@ int main(void)
 			  else if(player1Counter == player2Counter)
 			  {
 				  winner=0;
-				  sprintf(auxStr, "It's a tie", winner);
+				  sprintf(auxStr, "It's a tie");
 			  }
 
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
@@ -574,13 +574,14 @@ int main(void)
 		  {
 			 writeToFile = 0;
 
-			 // Disable ADC as it breaks SD writing
+			 // Desacctivación de la interrupción ADC para poder escribir en el SD card
 			  HAL_ADC_Stop_IT(&hadc1);
 
 			 char auxStr2[150];
 
-			 FRESULT res = f_mount (&SDFatFS, SDPath, 0);
+			 FRESULT res;
 
+			  res = f_mount (&SDFatFS, SDPath, 0);
 		      if(res != FR_OK)
 			  {
 				sprintf(auxStr, "Error in fmount: %d", res);
@@ -589,7 +590,6 @@ int main(void)
 			  }
 
 		      res = f_open(&SDFile, "Rev.txt", FA_CREATE_ALWAYS | FA_WRITE);
-
 			  if(res != FR_OK)
 			  {
 				sprintf(auxStr, "Error in fopen: %d", res);
@@ -607,7 +607,6 @@ int main(void)
 		      }
 
 			  res = f_write(&SDFile, auxStr2, strlen(auxStr2), &nBytes);
-
 			  if(res != FR_OK)
 			  {
 				sprintf(auxStr, "Error in fwrite: %d", res);
@@ -616,7 +615,6 @@ int main(void)
 			  }
 
 			  res = f_close(&SDFile);
-
 			  if(res != FR_OK)
 			  {
 				sprintf(auxStr, "Error in fclose: %d", res);
@@ -624,7 +622,7 @@ int main(void)
 				break;
 			  }
 
-			  // Reenable ADC interrupts
+			  // Activación interrupción ADC
 			 HAL_ADC_Start_IT(&hadc1);
 		  }
 	  }

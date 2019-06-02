@@ -31,6 +31,7 @@
 #include "stm32f7xx_hal_adc.h"
 #include "game.h"
 #include "menu.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,6 +100,7 @@ uint8_t counterMin = 0;
 uint16_t touchedPosX, touchedPosY;
 uint16_t counterGame=0;
 
+char p1Name[30], p2Name [30];
 
 // Fase 1 - main menu; fase 2 - jogo; fase 3 - pos juego
 uint8_t programPhase = 1;
@@ -187,6 +189,43 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
+void readPlayers(void)
+{
+	 HAL_ADC_Stop_IT(&hadc1);
+
+	char string[100] = {'\0'};
+	UINT nBytes;
+	uint8_t i = 0;
+
+	 if( f_mount (&SDFatFS, SDPath, 0)!=FR_OK)
+		 Error_Handler();
+
+	 if(f_open(&SDFile, "Read.txt", FA_READ)!=FR_OK)
+		 Error_Handler();
+
+	 if(f_read(&SDFile, string, sizeof(string), &nBytes) !=FR_OK)
+		 Error_Handler();
+
+	 // split strings: strtok no funciona como debe ser
+	 // lo que esta a hacer es poner un \0 donde aparece el \r
+	 strtok(string, "\r");//strtok deberia retornar un puntero para donde aparece el \r
+
+	 strcpy(p1Name, string);
+
+	 char *aux;
+	 for(aux = string; *aux !='\0'; aux++);
+
+	 // mover para despues del primer \0 y para despues del \n
+	 aux++;
+	 aux++;
+
+	 strcpy(p2Name, aux);
+
+	 f_close(&SDFile);
+
+	  HAL_ADC_Start_IT(&hadc1);
+}
+
 //retorna 1 si tocamos dentro del rectangulo y 0 en caso contrario
 uint8_t insideRectangle(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 {
@@ -211,7 +250,14 @@ void mainMenu(void)
 	{
     	BSP_LCD_Clear(LCD_COLOR_WHITE);
 
-		init_game();
+		readPlayers();
+
+		if(numberPlayers == 1)
+		{
+			strcpy(p2Name, "ARM");
+		}
+
+		init_game(p1Name, p2Name);
 		programPhase=2;
 		counterGame = 0;
 		passCounter1 = 0;
@@ -329,7 +375,7 @@ uint8_t mainCycle(void)
 		return 0;// 0 significa que no hay posiciones disponibles
 	}
 
-	sprintf(auxStr, "Player 1 Turn");
+	sprintf(auxStr, "%s Turn", p1Name);
 	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
 	counterTurn = 20;
 
@@ -362,7 +408,7 @@ uint8_t mainCycle(void)
 		validPosition = insertMove(playeri, playerj, 1, availablePosition, numAvailablePosition);//si consigue insertar validPosition es 1, en caso contrario es 0
 	}
 
-	printInfo();
+	printInfo(p1Name, p2Name);
 
 	printBoard();//vuelve a imprimir el tablero
 
@@ -379,7 +425,7 @@ uint8_t mainCycle(void)
 		return 0;
 	}
 
-	sprintf(auxStr, "Player 2 Turn");
+	sprintf(auxStr, "%s Turn", p2Name);
 	BSP_LCD_DisplayStringAt(45, LINE(17), (uint8_t*) auxStr, RIGHT_MODE);
 
 	while (validPosition == 0)
@@ -423,7 +469,7 @@ uint8_t mainCycle(void)
 		validPosition = insertMove(playeri, playerj, 2, availablePosition, numAvailablePosition);
 	}
 
-	printInfo();
+	printInfo(p1Name, p2Name);
 	printBoard();//vuelve a imprimir el tablero
 
 	return numAvailablePosition;
@@ -515,20 +561,25 @@ int main(void)
 
 		  if(mainCycle() == 0)//No más movimientos
 		  {
+			  BSP_LCD_SetTextColor(LCD_COLOR_RED);
+			  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+
 			  sprintf(auxStr, "GAME OVER!");
 			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
+
+			  BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 
 			  countPieces(&player1Counter, &player2Counter);
 			  if(player1Counter > player2Counter)
 			  {
 				 winner = 1;
-				 sprintf(auxStr, "Winner = Player %d", winner);
+				 sprintf(auxStr, "Winner = %s", p1Name);
 
 			  }
 			  else if(player1Counter < player2Counter)
 			  {
 				 winner= 2;
-				 sprintf(auxStr, "Winner = Player %d", winner);
+				 sprintf(auxStr,  "Winner = %s", p2Name);
 			  }
 			  else if(player1Counter == player2Counter)
 			  {
@@ -546,7 +597,7 @@ int main(void)
 		  {
 			  sprintf(auxStr, "GAME OVER!");
 			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
-			  sprintf(auxStr, "Winner = Player2");
+			  sprintf(auxStr,  "Winner = %s", p2Name);
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  winner = 2;
@@ -557,7 +608,7 @@ int main(void)
 		  {
 			  sprintf(auxStr, "GAME OVER!");
 			  BSP_LCD_DisplayStringAt(65, LINE(14), (uint8_t*) auxStr, RIGHT_MODE);
-			  sprintf(auxStr, "Winner = Player1");
+			  sprintf(auxStr,  "Winner = %s", p1Name);
 			  BSP_LCD_DisplayStringAt(10, LINE(15), (uint8_t*) auxStr, RIGHT_MODE);
 
 			  winner = 1;

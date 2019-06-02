@@ -17,12 +17,12 @@ uint8_t mat[BOARD_SIZE][BOARD_SIZE];
 
 void drawGrid(void);
 
-void init_game(void);
+void init_game(char *p1Name, char*p2Name);
 
 //imprime el tablero
 void printBoard();
 
-void printInfo(void);
+void printInfo(char * p1Name, char * p2Name);
 
 void flip(uint8_t player, uint8_t i, uint8_t j);
 

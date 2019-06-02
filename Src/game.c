@@ -46,7 +46,7 @@ void gameTitle(void)
   BSP_LCD_DisplayStringAt(100, 10, (uint8_t *)"REVERSI", RIGHT_MODE); //función quiere uint8_t
 }
 
-void init_game(void)
+void init_game(char *p1Name, char*p2Name)
 {
 	gameTitle();
 	drawGrid();
@@ -66,7 +66,7 @@ void init_game(void)
     mat[4][3] = 2;
     mat[3][4] = 2;
 
-	printInfo();
+	printInfo(p1Name, p2Name);
     printBoard();
 }
 
@@ -96,7 +96,7 @@ void printBoard(void)
     }
 }
 
-void printInfo(void)
+void printInfo(char * p1Name, char * p2Name)
 {
 	uint8_t player1Counter, player2Counter;
 	char pieces[20];
@@ -116,10 +116,10 @@ void printInfo(void)
 	sprintf(information, "GAME INFORMATION");
 	BSP_LCD_DisplayStringAt(20, LINE(6), (uint8_t*) information, RIGHT_MODE);
 
-	sprintf(pieces, "Pieces Ply. 1 = %.2d", player1Counter);
+	sprintf(pieces, "Pieces %s=%.2d", p1Name, player1Counter);
 	BSP_LCD_DisplayStringAt(5, LINE(8), (uint8_t*) pieces, RIGHT_MODE);
 
-	sprintf(pieces, "Pieces Ply. 2 = %.2d", player2Counter);
+	sprintf(pieces, "Pieces %s=%.2d", p2Name, player2Counter);
 	BSP_LCD_DisplayStringAt(5, LINE(9), (uint8_t*) pieces, RIGHT_MODE);
 
 }
@@ -350,6 +350,7 @@ void flip(uint8_t player, uint8_t i, uint8_t j)
             }
         }
     }
+
 
     // left
     if(j > 0)

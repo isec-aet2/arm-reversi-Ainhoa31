@@ -69,18 +69,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
-
 DMA2D_HandleTypeDef hdma2d;
-
 DSI_HandleTypeDef hdsi;
-
 LTDC_HandleTypeDef hltdc;
-
 SD_HandleTypeDef hsd2;
-
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
-
 SDRAM_HandleTypeDef hsdram1;
 
 /* USER CODE BEGIN PV */
@@ -140,8 +134,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_0)
 	{
-		resetPressed = 1;
-		programPhase = 1;//vuelve a la fase1
+		resetPressed = 1;//flag que dice cargamos en el boton reset
+		programPhase = 1;//vuelve a la fase 1
 		touchedPosX = 0;
 		touchedPosY = 0;
 	}
@@ -621,7 +615,7 @@ int main(void)
 	  {
 		  printTemperature();
 
-		  if(writeToFile == 1)
+		  if(writeToFile == 1)//para no estar siempre escribiendo en el fichero
 		  {
 			 writeToFile = 0;
 
@@ -648,13 +642,17 @@ int main(void)
 				break;
 			  }
 
-			  if(winner == 1 || winner == 2)
+			  if(winner == 1)
 			  {
-				  sprintf(auxStr2, "Winner = Player %d\nPieces Ply. 1 = %.2d\nPieces Ply. 2 = %.2d\nTotal time: %.2d:%.2d\n", winner, player1Counter, player2Counter, counterMin, counterGame %60);
+				  sprintf(auxStr2, "Winner = %s\nPieces %s = %.2d\nPieces %s = %.2d\nTotal time: %.2d:%.2d\n", p1Name, p1Name, player1Counter, p2Name, player2Counter, counterMin, counterGame %60);
+			  }
+			  else if( winner == 2)
+			  {
+				  sprintf(auxStr2, "Winner = %s\nPieces %s = %.2d\nPieces %s = %.2d\nTotal time: %.2d:%.2d\n", p2Name, p1Name, player1Counter, p2Name, player2Counter, counterMin, counterGame %60);
 			  }
 			  else if(winner == 0)
 			  {
-				  sprintf(auxStr2, "It's a tie\nPieces Ply. 1 = %.2d\nPieces Ply. 2 = %.2d\nTotal time: %.2d:%.2d\n", player1Counter, player2Counter, counterMin, counterGame %60);
+				  sprintf(auxStr2, "It's a tie\nPieces %s = %.2d\nPieces %s = %.2d\nTotal time: %.2d:%.2d\n",  p1Name, player1Counter, p2Name, player2Counter, counterMin, counterGame %60);
 		      }
 
 			  res = f_write(&SDFile, auxStr2, strlen(auxStr2), &nBytes);

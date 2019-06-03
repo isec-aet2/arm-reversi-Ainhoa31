@@ -135,9 +135,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if(GPIO_Pin == GPIO_PIN_0)
 	{
 		resetPressed = 1;//flag que dice cargamos en el boton reset
-		programPhase = 1;//vuelve a la fase 1
-		touchedPosX = 0;
-		touchedPosY = 0;
+		//programPhase = 1;//vuelve a la fase 1
+		//touchedPosX = 0;
+		//touchedPosY = 0;
 	}
 
 	if(GPIO_Pin == GPIO_PIN_13)
@@ -166,13 +166,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			  alreadyTouched=0;
 		  }
 	}
-
 }
 
 //Interrupción de los timers
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if(htim->Instance == TIM6)//utilizado para saber cuando pasam 2 segundos
+	if(htim->Instance == TIM6)//utilizado para saber cuando pasan 2 segundos
 	{
 		twoSecondsPass = 1;
 	}
@@ -376,6 +375,10 @@ uint8_t mainCycle(void)
 	while (validPosition == 0)//mientras la posicion del usuario no fuera valida permanece en el while
 	{
 		printTime();
+		  if(insideRectangle(x2Players, y2Players, width2Players, height2Players)==1)
+		  {
+				counterTurn = 20;
+		  }
 		printTemperature();
 
 		if(counterTurn == 0)
@@ -392,7 +395,8 @@ uint8_t mainCycle(void)
 
 		if(resetPressed == 1)//en caso de presionar el boton del reset sale de la función
 		{
-			return 1;
+			  resetPressed = 0;
+			  break;
 		}
 
 		// VER POSICION EN LA TOUCH SCREEN
@@ -403,7 +407,6 @@ uint8_t mainCycle(void)
 	}
 
 	printInfo(p1Name, p2Name);
-
 	printBoard();//vuelve a imprimir el tablero
 
 
@@ -425,6 +428,10 @@ uint8_t mainCycle(void)
 	while (validPosition == 0)
 	{
 		printTime();
+		  if(insideRectangle(x2Players, y2Players, width2Players, height2Players)==1)
+		  {
+				counterTurn = 20;
+		  }
 		printTemperature();
 
 		if(counterTurn == 0)
@@ -441,7 +448,8 @@ uint8_t mainCycle(void)
 
 		if(resetPressed == 1)
 		{
-			return 1;
+			  resetPressed = 0;
+			  break;
 		}
 
 		if(numberPlayers == 2)
@@ -538,23 +546,21 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  if(programPhase == 1)
-	  {
-		  if(resetPressed == 1)
-		  {
-			  resetPressed = 0;
-			  printMainMenu();
-		  }
+	  //if(programPhase == 1)
+	 //{
+
 
 		  mainMenu();//llamamos a esta función para ver si la persona carga en algún sitio
-	  }
-	  else if(programPhase == 2)
+	  //}
+	  if(programPhase == 2)
 	  {
 		  ////////////////////////////////////
 		  // TOUCH SCREEN
 
+
 		  if(mainCycle() == 0)//No más movimientos
 		  {
+
 			  BSP_LCD_SetTextColor(LCD_COLOR_RED);
 			  BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 

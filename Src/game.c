@@ -40,6 +40,7 @@ void gameTitle(void)
 
   BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
   BSP_LCD_FillRect(480, 0, 320, 50);
+
   BSP_LCD_SetFont(&Font24);
   BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
   BSP_LCD_SetBackColor(LCD_COLOR_BLACK);

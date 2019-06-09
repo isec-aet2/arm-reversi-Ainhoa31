@@ -1,0 +1,9 @@
+game.c:6:6:drawGrid	16	static
+game.c:37:6:gameTitle	8	static
+game.c:50:6:init_game	24	static
+game.c:75:6:printBoard	16	static
+game.c:100:6:printInfo	72	static
+game.c:129:6:countPieces	24	static
+game.c:152:6:flip	40	static
+game.c:383:6:getAvailableMoves	56	static
+game.c:593:5:insertMove	24	static

@@ -96,7 +96,7 @@ uint16_t counterGame=0;
 
 char p1Name[30], p2Name [30];
 
-// Fase 1 - main menu; fase 2 - jogo; fase 3 - pos juego
+// Fase 1 - main menu; fase 2 - juego; fase 3 - post juego
 uint8_t programPhase = 1;
 uint8_t resetPressed = 0;
 uint8_t writeToFile = 0;
@@ -347,7 +347,7 @@ void printTemperature(void)
     	sprintf(auxStr, "Temperature %d C", temperature);
 	    BSP_LCD_DisplayStringAt(20, LINE(3), (uint8_t*) auxStr, RIGHT_MODE);
 
-	    twoSecondsPass = 0;
+	    twoSecondsPass=0;
     }
 }
 
@@ -378,6 +378,8 @@ uint8_t mainCycle(void)
 		  if(insideRectangle(x2Players, y2Players, width2Players, height2Players)==1)
 		  {
 				counterTurn = 20;
+				touchedPosX = 0;
+				touchedPosY=0;
 		  }
 		printTemperature();
 
@@ -431,6 +433,8 @@ uint8_t mainCycle(void)
 		  if(insideRectangle(x2Players, y2Players, width2Players, height2Players)==1)
 		  {
 				counterTurn = 20;
+				touchedPosX = 0;
+				touchedPosY=0;
 		  }
 		printTemperature();
 
@@ -546,12 +550,12 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  //if(programPhase == 1)
-	 //{
+	  if(programPhase == 1)
+	  {
 
 
 		  mainMenu();//llamamos a esta función para ver si la persona carga en algún sitio
-	  //}
+	  }
 	  if(programPhase == 2)
 	  {
 		  ////////////////////////////////////

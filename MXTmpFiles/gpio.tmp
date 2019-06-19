@@ -1,0 +1,41 @@
+
+/**
+#t* @brief GPIO Initialization Function
+#t* @param None
+#t* @retval None
+#t*/
+static void MX_GPIO_Init(void)
+{
+#tGPIO_InitTypeDef GPIO_InitStruct = {0};
+#n#t/* GPIO Ports Clock Enable */
+#t__HAL_RCC_GPIOB_CLK_ENABLE();
+#t__HAL_RCC_GPIOD_CLK_ENABLE();
+#t__HAL_RCC_GPIOG_CLK_ENABLE();
+#t__HAL_RCC_GPIOI_CLK_ENABLE();
+#t__HAL_RCC_GPIOF_CLK_ENABLE();
+#t__HAL_RCC_GPIOH_CLK_ENABLE();
+#t__HAL_RCC_GPIOA_CLK_ENABLE();
+#t__HAL_RCC_GPIOE_CLK_ENABLE();
+#t__HAL_RCC_GPIOJ_CLK_ENABLE();
+#n#t/*Configure GPIO pin : PI13 */
+#tGPIO_InitStruct.Pin = GPIO_PIN_13;
+#tGPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+#tGPIO_InitStruct.Pull = GPIO_NOPULL;
+#tHAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+#n#t/*Configure GPIO pin : PI15 */
+#tGPIO_InitStruct.Pin = GPIO_PIN_15;
+#tGPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+#tGPIO_InitStruct.Pull = GPIO_NOPULL;
+#tHAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
+#n#t/*Configure GPIO pin : PA0 */
+#tGPIO_InitStruct.Pin = GPIO_PIN_0;
+#tGPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+#tGPIO_InitStruct.Pull = GPIO_NOPULL;
+#tHAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+#n#t/* EXTI interrupt init*/
+#tHAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+#tHAL_NVIC_EnableIRQ(EXTI0_IRQn);#n
+#tHAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+#tHAL_NVIC_EnableIRQ(EXTI15_10_IRQn);#n#n
+}
+#n
